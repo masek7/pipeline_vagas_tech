@@ -10,69 +10,55 @@ endpoint = "https://www.themuse.com/api/public/jobs"
 dados = {}
 
 
+class APIClient:
+    def __init__(self, arq_config, endpoint, api_key):
 
-def get_api_key():
-    """função que obtém a chave da api caso não exista o arquivo contendo ela."""
+        """em arq_config, deve-se passar um objeto path"""
 
-    if not arquivo_key_api.exists():
+        self.dados = {}
+        self.arq_config = arq_config
+        self.endpoint = endpoint
+        self.api_key = json.loads(api_key.read_text(encoding='utf-8'))
+        self.response = None
+        self.data = None
+
+    def config_params(self):
+        """ metodo que configura os parametros para a chamada da API"""
         try:
-            key_api = {}
-            key_api['api_key'] = input("Digite a chave da api: ")
+            self.dados['page'] = 0
+            self.dados['api_key'] = self.api_key
+            self.dados['location'] = input("Digite a localização, em ingles: (Exemplo: Rio de Janeiro, Brazil) ")
+            self.dados['level'] = input("Digite o nível da vaga: (Entry Level, Mid Level, Senior Level, Internship, management) ")
         except Exception as e:
             print(f"Ocorreu um erro: {e}")
         else:
-            contents = json.dumps(key_api)
-            arquivo_key_api.write_text(contents)
-            data = json.loads(arquivo_key_api.read_text(encoding='utf-8'))
-            return data
-
-    else:
-        data = json.loads(arquivo_key_api.read_text(encoding='utf-8'))
-        return data
-
-def config_params(api_key):
-    """função que configura os params para enviar no get da API"""
-    try:
-
-        dados['page'] = 0
-        dados['api_key'] = api_key['api_key']
-        dados['location'] = input("Digite a localização, em ingles: (Exemplo: Rio de Janeiro, Brazil) ")
-        dados['level'] = input("Digite o nível da vaga: (Entry Level, Mid Level, Senior Level, Internship, management) ")
-    except Exception as e:
-        print(f"Ocorreu um erro: {e}")
-    else:
-        contents = json.dumps(dados)
-        path.write_text(contents)
-        return dados
-
-api_key = get_api_key()
-params = config_params(api_key)
+            contents = json.dumps(self.dados)
+            self.arq_config.write_text(contents)
+            return self.dados
 
 
-def get_api():
-    """função que envia o get e recebe o contéudo da api."""
-    response = requests.get(url= endpoint, params= params )
+    def metodo_get(self):
 
-    print("URL FINAL: ", response.url)
-    print("Status: ", response.status_code)
+        """funcao que faz a requisição get e recebe o objeto em json"""
 
-    if response.status_code == 200:
-        data = response.json()
-        arquivo_conteudo = json.dumps(data)
+        self.response = requests.get(url = self.endpoint, params= self.config_params())
+        self.data = self.response.json()
+        return self.data
 
-        print(data)
-
-        return data
-    else:
-        print(response.text)
-
-
-def consult_api(qtd_requisicoes=5):
-    for i in range(1, qtd_requisicoes + 1):
-        dados['page'] = i
-        time.sleep(1.5)
-        get_api()
+    def logger(self):
+        if self.response.status_code == 200:
+            log = {
+                "page_count": self.data["page_count"],
+                "items_per_page": self.data["items_per_page"],
+                "total": self.data["total"]
+            }
+            print(log)
+        else:
+            print(self.response.status_code)
 
 
 
-consult_api()
+test = APIClient(path,endpoint,arquivo_key_api)
+
+test.metodo_get()
+test.logger()
