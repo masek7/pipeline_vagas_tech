@@ -1,63 +1,78 @@
 import requests
 from pathlib import Path
 import json
+import time
+
 
 path = Path('config.json')
-url = "https://www.themuse.com/api/public/jobs"
+arquivo_key_api = Path('api_key.json')
+endpoint = "https://www.themuse.com/api/public/jobs"
 dados = {}
 
-class Pipeline:
-    def __init__(self, dados = {}):
-        self.dados = dados
 
-    def config_params(self):
+
+def get_api_key():
+    """função que obtém a chave da api caso não exista o arquivo contendo ela."""
+
+    if not arquivo_key_api.exists():
         try:
-            self.dados['page'] = int(input("Quantas páginas você quer pesquisar?: "))
-            self.dados['api_key'] = input("Digite sua chave api: ")
-            self.dados['location'] = input("Digite a localização, em ingles: (Exemplo: Rio de Janeiro, Brazil")
-            self.dados['level'] = input("Digite o nível da vaga: (Entry Level, Mid Level, Senior Level, Internship, management")
-        except ValueError:
-            pass
+            key_api = {}
+            key_api['api_key'] = input("Digite a chave da api: ")
+        except Exception as e:
+            print(f"Ocorreu um erro: {e}")
         else:
-            contents = json.dumps(self.dados)
-            path.write_text(contents)
-
-    def read_params(self):
-
-        try:
-            contents = path.read_text()
-        except FileNotFoundError:
-            print("Arquivo de params não encontrado.")
-        else:
-            data = json.loads(contents)
+            contents = json.dumps(key_api)
+            arquivo_key_api.write_text(contents)
+            data = json.loads(arquivo_key_api.read_text(encoding='utf-8'))
             return data
 
-    def get_new_data(self):
+    else:
+        data = json.loads(arquivo_key_api.read_text(encoding='utf-8'))
+        return data
 
-        print("Insira os novos dados: ")
-        self.config_params()
+def config_params(api_key):
+    """função que configura os params para enviar no get da API"""
+    try:
 
-    def consult_api(self):
+        dados['page'] = 0
+        dados['api_key'] = api_key['api_key']
+        dados['location'] = input("Digite a localização, em ingles: (Exemplo: Rio de Janeiro, Brazil) ")
+        dados['level'] = input("Digite o nível da vaga: (Entry Level, Mid Level, Senior Level, Internship, management) ")
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+    else:
+        contents = json.dumps(dados)
+        path.write_text(contents)
+        return dados
 
-        if path.exists():
-            check = input("Deseja mudar os dados da consulta? S/N").upper()
-            if check != "N":
-                self.get_new_data()
-                self.read_params()
+api_key = get_api_key()
+params = config_params(api_key)
 
-        else:
-            self.config_params()
-            self.read_params()
 
-def consult_api():
-    response = requests.get(url, params=)
+def get_api():
+    """função que envia o get e recebe o contéudo da api."""
+    response = requests.get(url= endpoint, params= params )
 
     print("URL FINAL: ", response.url)
     print("Status: ", response.status_code)
 
     if response.status_code == 200:
         data = response.json()
+        arquivo_conteudo = json.dumps(data)
+
         print(data)
-        print(data['items_per_page'])
+
+        return data
     else:
         print(response.text)
+
+
+def consult_api(qtd_requisicoes=5):
+    for i in range(1, qtd_requisicoes + 1):
+        dados['page'] = i
+        time.sleep(1.5)
+        get_api()
+
+
+
+consult_api()
