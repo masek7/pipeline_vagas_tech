@@ -3,6 +3,7 @@ import requests
 from pathlib import Path
 import json
 import time
+import numpy as np
 
 arq_config = Path('config.json')
 arquivo_key_api = Path('api_key.json')
@@ -114,8 +115,8 @@ class JobTransformer:
     def extract_and_join(self, lista_dict):
         valores_extraidos = []
         for dicionario in lista_dict:
-            for valor in dicionario.values():
-                valores_extraidos.append(str(valor))
+            chave, valor = next(iter(dicionario.items()))
+            valores_extraidos.append(str(valor))
 
         return ' | '.join(valores_extraidos)
 
@@ -123,22 +124,58 @@ class JobTransformer:
         df_limpo = df.copy()
         df_limpo['location_name'] = df_limpo['locations'].apply(self.extract_and_join)
         df_limpo['company_name'] = df_limpo['company'].str.get('name')
-        df_limpo['link_vaga'] = df_limpo['refs'].str.get('landing_page')
+        df_limpo['landing_page'] = df_limpo['refs'].str.get('landing_page')
+        df_limpo['levels'] = df_limpo['levels'].apply(self.extract_and_join)
+        df_limpo['categories'] = df_limpo['categories'].apply(self.extract_and_join)
         df_limpo.rename(columns={'id':'job_id'}, inplace=True)
-        df_limpo = df_limpo.drop(['type','short_name','model_type','locations','levels', 'refs','company','tags'], axis=1)
+        df_limpo.rename(columns={'name':'job_name'}, inplace=True)
+        df_limpo.rename(colmns={'categories':'category'})
+        df_limpo = df_limpo.drop(['type','contents','short_name','model_type','locations', 'refs','company','tags', 'job_level'], axis=1)
         df_limpo.insert(0,'job_id', df_limpo.pop('job_id'))
 
         df_limpo.to_csv('dados_limpos.csv', index=False, encoding='utf-8')
 
         return df_limpo
 
+    def standardizes_data(self):
 
+        df = self.create_new_df(self.convert_to_df())
+        df['job_id'] = pd.to_numeric(df['job_id'], errors='coerce')
+        df['job_name'] = df['job_name'].astype('string')
+        df['publication_date'] = pd.to_datetime(df['publication_date'], errors='coerce')
 
+        df['category'] = df['category'].replace(r'^\s*$', np.nan, regex=True)
+        df['category'] = df ['category'].astype('string')
+
+        df['levels'] = df['levels'].replace(r'^\s*$', np.nan, regex=True)
+        df['levels'] = df['levels'].astype('string')
+
+        df['company_id'] = pd.to_numeric(df['company_id'], errors='coerce')
+
+        df['location_name'] = df['location_name'].replace(r'^\s*$', np.nan, regex=True)
+        df['location_name'] = df['location_name'].astype('string')
+
+        df['company_name'] = df['company_name'].replace(r'^\s*$', np.nan, regex=True)
+        df['company_name'] = df['company_name'].astype('string')
+
+        df['landing_page'] = df['landing_page'].replace(r'^\s*$', np.nan, regex=True)
+        df['landing_page'] = df['landing_page'].astype('string')
+
+        df['category'] = df['category'].fillna('unknown')
+        df['levels'] = df['levels'].fillna('unknown')
+        df['location_name'] = df['location_name'].fillna('unknown')
+        df['landing_page'] = df['landing_page'].fillna('unknown')
+        df['company_name'] = df['company_name'].fillna('unknown')
+
+        df.dropna(subset=['job_id', 'job_name', 'publication_date', 'company_id'], inplace=True)
+        df.drop_duplicates(subset=['job_id'], inplace=True)
+
+        return df
 
 params = coletar_dados(arquivo_key_api)
 salva_dados(params, arq_config)
 job = JobExtractor(5, params)
 
 test = JobTransformer(job.paginacao_dados())
-test.create_new_df(test.convert_to_df())
+test.standardizes_data()
 
