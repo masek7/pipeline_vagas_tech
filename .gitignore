@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables / secrets
+.env
+api_key.json
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated data files
+raw_data.csv
+clear_data.csv
+config.json
+
+# Local/test files
+main_copy.py
+
+# IDE
+.idea/
+
+# OS / misc
+.DS_Store
